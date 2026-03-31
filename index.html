@@ -3,38 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מחשבון השוואת מס 2025 vs 2026</title>
+    <title>מחשבון מס 2026 - דוד אליהו</title>
     <style>
         :root { --primary: #2563eb; --success: #059669; --bg: #f8fafc; }
         body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg); display: flex; justify-content: center; padding: 20px; margin: 0; min-height: 100vh; flex-direction: column; align-items: center; }
         .card { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 450px; }
-        h2 { color: #1e293b; text-align: center; margin-bottom: 24px; font-size: 1.5rem; }
-        label { display: block; margin-top: 16px; font-weight: 600; color: #475569; }
-        input { width: 100%; padding: 12px; margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-size: 16px; outline: none; transition: border 0.2s; }
-        input:focus { border-color: var(--primary); }
-        button { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; margin-top: 24px; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; transition: opacity 0.2s; }
-        button:hover { opacity: 0.9; }
+        h2 { color: #1e293b; text-align: center; margin-bottom: 20px; font-size: 1.5rem; }
+        label { display: block; margin-top: 14px; font-weight: 600; color: #475569; font-size: 0.9rem; }
+        input, select { width: 100%; padding: 12px; margin-top: 6px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-size: 16px; outline: none; background: white; }
+        input:focus, select:focus { border-color: var(--primary); }
+        button { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; margin-top: 24px; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; }
         .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; display: none; }
         .res-box { padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center; }
-        .res-title { font-size: 0.85rem; color: #64748b; margin-bottom: 4px; }
+        .res-title { font-size: 0.8rem; color: #64748b; margin-bottom: 4px; }
         .res-val { font-weight: bold; font-size: 1.1rem; color: #1e293b; }
-        .savings-card { grid-column: span 2; background: #ecfdf5; border: 1px solid #10b981; padding: 16px; margin-top: 12px; border-radius: 8px; text-align: center; }
-        .savings-val { color: var(--success); font-size: 1.4rem; font-weight: 800; }
-        footer { margin-top: 30px; color: #94a3b8; font-size: 0.9rem; text-align: center; padding-bottom: 20px; }
+        .savings-card { grid-column: span 2; background: #f0fdf4; border: 1px solid #10b981; padding: 15px; margin-top: 10px; border-radius: 8px; text-align: center; }
+        .highlight-val { color: var(--success); font-size: 1.3rem; font-weight: 800; }
+        footer { margin: 25px 0; color: #94a3b8; font-size: 0.9rem; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>השוואת נטו: 2025 vs 2026</h2>
+    <h2>מחשבון מס 2026</h2>
     
     <label for="gross">שכר ברוטו חודשי:</label>
-    <input type="number" id="gross" placeholder="הכנס סכום" value="22000">
+    <input type="number" id="gross" value="22000">
 
-    <label for="points">נקודות זיכוי (מינימום 2.25):</label>
+    <label for="points">נקודות זיכוי:</label>
     <input type="number" id="points" step="0.25" value="2.25">
 
-    <button onclick="compareTax()">חשב השוואה</button>
+    <label for="location">יישוב מזכה (הטבת מס):</label>
+    <select id="location">
+        <option value="0,0">ללא הטבת יישוב (מרכז)</option>
+        <option value="0.07,162000">אשקלון (7% עד תקרת הכנסה)</option>
+        <option value="0.10,162000">יישובי עוטף עזה/ספר (10%)</option>
+        <option value="0.12,204000">נהריה/עכו (12%)</option>
+        <option value="0.11,162000">קריית שמונה (11%)</option>
+    </select>
+
+    <button onclick="calculateAll()">חשב נטו משודרג</button>
 
     <div id="resultGrid" class="result-grid">
         <div class="res-box">
@@ -46,8 +54,8 @@
             <div id="net2026" class="res-val"></div>
         </div>
         <div class="savings-card">
-            <div class="res-title">החיסכון החודשי שלך (תוספת לנטו):</div>
-            <div id="savings" class="savings-val"></div>
+            <div id="benefitLabel" class="res-title">החיסכון הכולל שלך (ריווח + יישוב):</div>
+            <div id="totalDiff" class="highlight-val"></div>
         </div>
     </div>
 </div>
@@ -55,7 +63,7 @@
 <footer>נוצר על ידי דוד אליהו</footer>
 
 <script>
-function calcTax(gross, brackets, pointValue, points) {
+function calcTax(gross, brackets, points, locationRate, locationCeiling) {
     let tax = 0;
     let prev = 0;
     for (let b of brackets) {
@@ -64,14 +72,22 @@ function calcTax(gross, brackets, pointValue, points) {
             prev = b.upTo;
         }
     }
-    return Math.max(0, tax - (points * pointValue));
+    
+    // נקודות זיכוי
+    tax = Math.max(0, tax - (points * 242));
+    
+    // הטבת יישוב (חישוב לפי תקרה שנתית מחולקת ל-12)
+    const monthlyCeiling = locationCeiling / 12;
+    const locationBenefit = Math.min(gross, monthlyCeiling) * locationRate;
+    
+    return Math.max(0, tax - locationBenefit);
 }
 
-function compareTax() {
+function calculateAll() {
     const gross = parseFloat(document.getElementById('gross').value);
     const points = parseFloat(document.getElementById('points').value);
-    
-    // מדרגות 2025
+    const [locRate, locCeiling] = document.getElementById('location').value.split(',').map(Number);
+
     const brackets2025 = [
         { upTo: 7010, rate: 0.10 }, { upTo: 10060, rate: 0.14 },
         { upTo: 16150, rate: 0.20 }, { upTo: 22440, rate: 0.31 },
@@ -79,7 +95,6 @@ function compareTax() {
         { upTo: Infinity, rate: 0.50 }
     ];
 
-    // מדרגות 2026
     const brackets2026 = [
         { upTo: 7010, rate: 0.10 }, { upTo: 10060, rate: 0.14 },
         { upTo: 19000, rate: 0.20 }, { upTo: 25100, rate: 0.31 },
@@ -87,18 +102,12 @@ function compareTax() {
         { upTo: Infinity, rate: 0.50 }
     ];
 
-    const pointVal = 242; 
-
-    const tax2025 = calcTax(gross, brackets2025, pointVal, points);
-    const tax2026 = calcTax(gross, brackets2026, pointVal, points);
-
-    const net2025 = gross - tax2025;
-    const net2026 = gross - tax2026;
-    const savings = net2026 - net2025;
+    const net2025 = gross - calcTax(gross, brackets2025, points, 0, 0); // נטו רגיל ללא יישוב ב-2025
+    const net2026 = gross - calcTax(gross, brackets2026, points, locRate, locCeiling);
 
     document.getElementById('net2025').innerText = '₪' + Math.round(net2025).toLocaleString();
     document.getElementById('net2026').innerText = '₪' + Math.round(net2026).toLocaleString();
-    document.getElementById('savings').innerText = '₪' + Math.round(savings).toLocaleString();
+    document.getElementById('totalDiff').innerText = '₪' + Math.round(net2026 - net2025).toLocaleString();
     document.getElementById('resultGrid').style.display = 'grid';
 }
 </script>
